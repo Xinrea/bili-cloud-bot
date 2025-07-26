@@ -5,6 +5,7 @@ import { CloudAnalyzer } from './cloudAnalyzer';
 import { CloudDatabase, CheckInRecord, CloudType, ProcessedAtMessage } from './database';
 import { CheckInImageGenerator } from './imageGenerator';
 import fs from 'fs';
+import { log } from './logger';
 
 // 初始化数据库
 const cloudDB = new CloudDatabase();
@@ -263,13 +264,13 @@ async function printImagesInDynamicCard(dynamicCard: DynamicCardItem) {
   const images = checkImagesInDynamicCard(dynamicCard);
   
   if (images.length === 0) {
-    console.log('  > 该动态卡片中未发现 Opus 图片');
+    log.info('该动态卡片中未发现 Opus 图片');
     return;
   }
   
-  console.log(`  > 发现 ${images.length} 张 Opus 图片:`);
+  log.info(`发现 ${images.length} 张 Opus 图片:`);
   images.forEach((image, index) => {
-    console.log(`    ${index + 1}. ${image.description}: ${image.url}`);
+    log.info(`  ${index + 1}. ${image.description}: ${image.url}`);
   });
 }
 
@@ -309,7 +310,7 @@ function extractAuthorId(dynamicData: any): string | null {
   try {
     // 优先尝试从basic信息中获取
     if (dynamicData.basic?.rid_str) {
-      console.log(`  > 尝试从basic信息中获取作者ID: ${dynamicData.basic.rid_str}`);
+      log.debug(`尝试从basic信息中获取作者ID: ${dynamicData.basic.rid_str}`);
     }
     
     // 尝试从modules中的module_author获取
@@ -320,16 +321,16 @@ function extractAuthorId(dynamicData: any): string | null {
         if (module.module_author) {
           // 尝试多种可能的ID字段
           if (module.module_author.mid) {
-            console.log(`  > 从module_author.mid获取作者ID: ${module.module_author.mid}`);
+            log.debug(`从module_author.mid获取作者ID: ${module.module_author.mid}`);
             return String(module.module_author.mid);
           }
           if (module.module_author.uid) {
-            console.log(`  > 从module_author.uid获取作者ID: ${module.module_author.uid}`);
+            log.debug(`从module_author.uid获取作者ID: ${module.module_author.uid}`);
             return String(module.module_author.uid);
           }
           if (module.module_author.face && module.module_author.name) {
             // 如果有头像和名字，说明这是作者信息，但需要进一步查找ID
-            console.log(`  > 发现作者信息 - 名字: ${module.module_author.name}`);
+            log.debug(`发现作者信息 - 名字: ${module.module_author.name}`);
           }
         }
       }
@@ -337,20 +338,20 @@ function extractAuthorId(dynamicData: any): string | null {
     
     // 尝试从顶级字段获取
     if (dynamicData.uid) {
-      console.log(`  > 从顶级uid字段获取作者ID: ${dynamicData.uid}`);
+      log.debug(`从顶级uid字段获取作者ID: ${dynamicData.uid}`);
       return String(dynamicData.uid);
     }
     if (dynamicData.mid) {
-      console.log(`  > 从顶级mid字段获取作者ID: ${dynamicData.mid}`);
+      log.debug(`从顶级mid字段获取作者ID: ${dynamicData.mid}`);
       return String(dynamicData.mid);
     }
     
-    console.log(`  > 未能找到作者ID，打印完整数据结构用于调试`);
-    console.log(`  > 完整动态数据键:`, Object.keys(dynamicData));
+    log.warn(`未能找到作者ID，打印完整数据结构用于调试`);
+    log.debug(`完整动态数据键:`, Object.keys(dynamicData));
     
     return null;
   } catch (error) {
-    console.error(`  > 提取作者ID时出错:`, error instanceof Error ? error.message : '未知错误');
+    log.error(`提取作者ID时出错:`, error instanceof Error ? error.message : '未知错误');
     return null;
   }
 }
@@ -366,7 +367,7 @@ function extractAuthorName(dynamicData: any): string | null {
       
       for (const module of modulesArray) {
         if (module.module_author && module.module_author.name) {
-          console.log(`  > 从module_author.name获取作者名称: ${module.module_author.name}`);
+          log.debug(`从module_author.name获取作者名称: ${module.module_author.name}`);
           return module.module_author.name;
         }
       }
@@ -374,14 +375,14 @@ function extractAuthorName(dynamicData: any): string | null {
     
     // 尝试从其他可能的字段获取
     if (dynamicData.desc?.user_profile?.info?.uname) {
-      console.log(`  > 从desc.user_profile.info.uname获取作者名称: ${dynamicData.desc.user_profile.info.uname}`);
+      log.debug(`从desc.user_profile.info.uname获取作者名称: ${dynamicData.desc.user_profile.info.uname}`);
       return dynamicData.desc.user_profile.info.uname;
     }
     
-    console.log(`  > 未能找到作者名称`);
+    log.warn(`未能找到作者名称`);
     return null;
   } catch (error) {
-    console.error(`  > 提取作者名称时出错:`, error instanceof Error ? error.message : '未知错误');
+    log.error(`提取作者名称时出错:`, error instanceof Error ? error.message : '未知错误');
     return null;
   }
 }
@@ -434,7 +435,7 @@ async function uploadImageToBiliBili(imagePath: string): Promise<ImageInfo | nul
     // 从cookie中提取csrf token
     const csrf = extractCsrfFromCookie(config.cookie);
     if (!csrf) {
-      console.error('  > 无法从cookie中提取csrf token');
+      log.error('  > 无法从cookie中提取csrf token');
       return null;
     }
     formData.append('csrf', csrf);
@@ -448,7 +449,7 @@ async function uploadImageToBiliBili(imagePath: string): Promise<ImageInfo | nul
 
     if (response.data.code === 0) {
       const imageData = response.data.data;
-      console.log(`  > 图片上传成功！URL: ${imageData.image_url}`);
+      log.info(`图片上传成功！URL: ${imageData.image_url}`);
       
       // 返回完整的图片信息
       return {
@@ -458,11 +459,11 @@ async function uploadImageToBiliBili(imagePath: string): Promise<ImageInfo | nul
         img_size: imageData.image_size || 0
       };
     } else {
-      console.error(`  > 图片上传失败. Bilibili API response: ${response.data.message} (Code: ${response.data.code})`);
+      log.error(`图片上传失败. Bilibili API response: ${response.data.message} (Code: ${response.data.code})`);
       return null;
     }
   } catch (error) {
-    console.error('  > 上传图片到B站图床失败:', error instanceof Error ? error.message : '未知错误');
+    log.error('上传图片到B站图床失败:', error instanceof Error ? error.message : '未知错误');
     return null;
   }
 }
@@ -484,12 +485,12 @@ let isProcessing = false;
  */
 async function checkAndComment() {
   if (isProcessing) {
-    console.log(`[${new Date().toLocaleTimeString()}] Previous check still running, skipping...`);
+    log.info(`Previous check still running, skipping...`);
     return;
   }
   
   isProcessing = true;
-  console.log(`[${new Date().toLocaleTimeString()}] Checking for new @ messages...`);
+  log.info(`Checking for new @ messages...`);
   try {
     const response = await apiClient.get<AtFeedResponse>(API.getAtFeed, {
       params: { 
@@ -502,11 +503,11 @@ async function checkAndComment() {
 
     const atMessages = response.data?.data?.items;
     if (!atMessages || atMessages.length === 0) {
-      console.log(`  > No @ messages found. Message: ${response.data?.message}`);
+      log.info(`No @ messages found. Message: ${response.data?.message}`);
       return;
     }
 
-    console.log(`  > Found ${atMessages.length} @ messages, checking which ones need processing...`);
+    log.info(`Found ${atMessages.length} @ messages, checking which ones need processing...`);
 
     // 处理所有@消息，依赖数据库记录来过滤已处理的
     let processedCount = 0;
@@ -516,23 +517,22 @@ async function checkAndComment() {
       // 检查是否已处理过
       const isProcessed = await cloudDB.isAtMessageProcessed(atMessage.id);
       if (isProcessed) {
-        console.log(`  > @ message ${atMessage.id} 已处理过，跳过`);
         skippedCount++;
         continue;
       }
       
-      console.log(`  > Processing @ message! ID: ${atMessage.id}, From: ${atMessage.user.nickname}`);
-      console.log(`  > Message title: ${atMessage.item.title}`);
-      console.log(`  > URI: ${atMessage.item.uri}`);
+      log.info(`Processing @ message! ID: ${atMessage.id}, From: ${atMessage.user.nickname}`);
+      log.info(`Message title: ${atMessage.item.title}`);
+      log.info(`URI: ${atMessage.item.uri}`);
       
       // 处理这个@消息
       await processAtMessage(atMessage);
       processedCount++;
     }
 
-    console.log(`  > 处理完成：新处理 ${processedCount} 条@消息，跳过 ${skippedCount} 条已处理的消息`);
+    log.info(`处理完成：新处理 ${processedCount} 条@消息，跳过 ${skippedCount} 条已处理的消息`);
   } catch (error) {
-    console.error('Error fetching @ messages:', error instanceof Error ? error.message : 'An unknown error occurred.');
+    log.error('Error fetching @ messages:', error instanceof Error ? error.message : 'An unknown error occurred.');
   } finally {
     isProcessing = false;
   }
@@ -554,7 +554,7 @@ async function processAtMessage(atMessage: AtMessage) {
       if (opusMatch && opusMatch[1]) {
         dynamicId = opusMatch[1];
       } else {
-        console.log(`  > Could not extract opus ID from URI: ${uri}`);
+        log.info(`  > Could not extract opus ID from URI: ${uri}`);
         
         // 将无法解析opus ID的URI视为已处理，避免重复处理
         const processedMessage: ProcessedAtMessage = {
@@ -565,7 +565,7 @@ async function processAtMessage(atMessage: AtMessage) {
           uri: uri
         };
         await cloudDB.recordProcessedAtMessage(processedMessage);
-        console.log(`  > ✅ 无法解析opus URI的@消息 ${atMessage.id} 已标记为已处理，避免重复尝试`);
+        log.info(`  > ✅ 无法解析opus URI的@消息 ${atMessage.id} 已标记为已处理，避免重复尝试`);
         
         return;
       }
@@ -575,7 +575,7 @@ async function processAtMessage(atMessage: AtMessage) {
       if (dynamicMatch && dynamicMatch[1]) {
         dynamicId = dynamicMatch[1];
       } else {
-        console.log(`  > Could not extract dynamic ID from URI: ${uri}`);
+        log.info(`  > Could not extract dynamic ID from URI: ${uri}`);
         
         // 将无法解析的URI视为已处理，避免重复处理
         const processedMessage: ProcessedAtMessage = {
@@ -586,12 +586,12 @@ async function processAtMessage(atMessage: AtMessage) {
           uri: uri
         };
         await cloudDB.recordProcessedAtMessage(processedMessage);
-        console.log(`  > ✅ 无法解析URI的@消息 ${atMessage.id} 已标记为已处理，避免重复尝试`);
+        log.info(`  > ✅ 无法解析URI的@消息 ${atMessage.id} 已标记为已处理，避免重复尝试`);
         
         return;
       }
     } else {
-      console.log(`  > Unsupported URI format: ${uri}`);
+      log.info(`  > Unsupported URI format: ${uri}`);
       
       // 将无效的URI格式视为已处理，避免重复处理
       const processedMessage: ProcessedAtMessage = {
@@ -602,12 +602,12 @@ async function processAtMessage(atMessage: AtMessage) {
         uri: uri
       };
       await cloudDB.recordProcessedAtMessage(processedMessage);
-      console.log(`  > ✅ 无效URI格式的@消息 ${atMessage.id} 已标记为已处理，避免重复尝试`);
+      log.info(`  > ✅ 无效URI格式的@消息 ${atMessage.id} 已标记为已处理，避免重复尝试`);
       
       return;
     }
     
-    console.log(`  > Processing dynamic ID: ${dynamicId} (extracted from URI: ${uri})`);
+    log.info(`  > Processing dynamic ID: ${dynamicId} (extracted from URI: ${uri})`);
     
     // 获取动态详情
     let dynamicResponse;
@@ -616,33 +616,33 @@ async function processAtMessage(atMessage: AtMessage) {
     if (uri.includes('/opus/')) {
       // 对于opus格式，使用opus专用API
       try {
-        console.log(`  > Fetching opus details using opus API...`);
+        log.info(`  > Fetching opus details using opus API...`);
         dynamicResponse = await apiClient.get('https://api.bilibili.com/x/polymer/web-dynamic/v1/opus/detail', {
           params: { id: dynamicId }
         });
         dynamicData = dynamicResponse.data?.data?.item;
-        console.log(`  > Opus API response code: ${dynamicResponse.data?.code}, message: ${dynamicResponse.data?.message}`);
+        log.info(`  > Opus API response code: ${dynamicResponse.data?.code}, message: ${dynamicResponse.data?.message}`);
       } catch (error) {
-        console.log(`  > Failed to get opus details: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        log.info(`  > Failed to get opus details: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
     
     // 如果opus API失败或者不是opus格式，尝试使用通用动态API
     if (!dynamicData) {
       try {
-        console.log(`  > Fetching dynamic details using general API...`);
+        log.info(`  > Fetching dynamic details using general API...`);
         dynamicResponse = await apiClient.get(API.getDynamicDetails, {
           params: { id: dynamicId }
         });
         dynamicData = dynamicResponse.data?.data?.item;
-        console.log(`  > General API response code: ${dynamicResponse.data?.code}, message: ${dynamicResponse.data?.message}`);
+        log.info(`  > General API response code: ${dynamicResponse.data?.code}, message: ${dynamicResponse.data?.message}`);
       } catch (error) {
-        console.log(`  > Failed to get dynamic details: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        log.info(`  > Failed to get dynamic details: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
 
     if (!dynamicData) {
-      console.log(`  > Could not get dynamic details for ID: ${dynamicId} using any API`);
+      log.info(`  > Could not get dynamic details for ID: ${dynamicId} using any API`);
       return;
     }
 
@@ -659,7 +659,7 @@ async function processAtMessage(atMessage: AtMessage) {
       if (dynamicData[field]) {
         // B站时间戳通常是秒级，需要转换为毫秒
         createTime = Number(dynamicData[field]) * 1000;
-        console.log(`  > 从字段 ${field} 获取到创建时间: ${new Date(createTime).toLocaleString()}`);
+        log.info(`  > 从字段 ${field} 获取到创建时间: ${new Date(createTime).toLocaleString()}`);
         break;
       }
     }
@@ -669,7 +669,7 @@ async function processAtMessage(atMessage: AtMessage) {
       for (const field of timeFields) {
         if (dynamicData.basic[field]) {
           createTime = Number(dynamicData.basic[field]) * 1000;
-          console.log(`  > 从basic.${field} 获取到创建时间: ${new Date(createTime).toLocaleString()}`);
+          log.info(`  > 从basic.${field} 获取到创建时间: ${new Date(createTime).toLocaleString()}`);
           break;
         }
       }
@@ -681,7 +681,7 @@ async function processAtMessage(atMessage: AtMessage) {
       for (const module of modulesArray) {
         if (module.module_author && module.module_author.pub_ts) {
           createTime = Number(module.module_author.pub_ts) * 1000;
-          console.log(`  > 从module_author.pub_ts 获取到创建时间: ${new Date(createTime).toLocaleString()}`);
+          log.info(`  > 从module_author.pub_ts 获取到创建时间: ${new Date(createTime).toLocaleString()}`);
           break;
         }
       }
@@ -689,11 +689,11 @@ async function processAtMessage(atMessage: AtMessage) {
     
     if (createTime) {
       const timeDiff = now - createTime;
-      console.log(`  > 动态创建时间: ${new Date(createTime).toLocaleString()}`);
-      console.log(`  > 距离现在: ${Math.round(timeDiff / (1000 * 60 * 60))} 小时`);
+      log.info(`  > 动态创建时间: ${new Date(createTime).toLocaleString()}`);
+      log.info(`  > 距离现在: ${Math.round(timeDiff / (1000 * 60 * 60))} 小时`);
       
       if (timeDiff > oneDayMs) {
-        console.log(`  > ⚠️ 动态创建时间超过24小时，跳过评论`);
+        log.info(`  > ⚠️ 动态创建时间超过24小时，跳过评论`);
         
         // 仍然记录已处理的@消息，避免下次重复检查
         const processedMessage: ProcessedAtMessage = {
@@ -706,10 +706,10 @@ async function processAtMessage(atMessage: AtMessage) {
         await cloudDB.recordProcessedAtMessage(processedMessage);
         return;
       } else {
-        console.log(`  > ✅ 动态创建时间在24小时内，继续处理`);
+        log.info(`  > ✅ 动态创建时间在24小时内，继续处理`);
       }
     } else {
-      console.log(`  > ⚠️ 无法获取动态创建时间，继续处理（假设是新动态）`);
+      log.info(`  > ⚠️ 无法获取动态创建时间，继续处理（假设是新动态）`);
     }
 
     // 将动态数据转换为我们的格式，使用动态本身的basic信息
@@ -723,30 +723,30 @@ async function processAtMessage(atMessage: AtMessage) {
     };
 
     // 添加调试信息
-    console.log(`  > Dynamic data structure keys:`, Object.keys(dynamicData));
-    console.log(`  > Basic info:`, dynamicData.basic);
+    log.info(`  > Dynamic data structure keys:`, Object.keys(dynamicData));
+    log.info(`  > Basic info:`, dynamicData.basic);
     
     if (dynamicData.modules) {
-      console.log(`  > Modules keys:`, Object.keys(dynamicData.modules));
-      console.log(`  > Modules is array:`, Array.isArray(dynamicData.modules));
+      log.info(`  > Modules keys:`, Object.keys(dynamicData.modules));
+      log.info(`  > Modules is array:`, Array.isArray(dynamicData.modules));
       
       if (Array.isArray(dynamicData.modules)) {
         // modules 是数组，遍历每个模块
         dynamicData.modules.forEach((module: any, index: number) => {
-          console.log(`  > Module ${index} keys:`, Object.keys(module));
+          log.info(`  > Module ${index} keys:`, Object.keys(module));
           if (module.module_dynamic) {
-            console.log(`  > Module ${index} dynamic keys:`, Object.keys(module.module_dynamic));
+            log.info(`  > Module ${index} dynamic keys:`, Object.keys(module.module_dynamic));
             if (module.module_dynamic.major) {
-              console.log(`  > Module ${index} major keys:`, Object.keys(module.module_dynamic.major));
+              log.info(`  > Module ${index} major keys:`, Object.keys(module.module_dynamic.major));
             }
           }
         });
       } else {
         // modules 是对象
         if (dynamicData.modules.module_dynamic) {
-          console.log(`  > Module_dynamic keys:`, Object.keys(dynamicData.modules.module_dynamic));
+          log.info(`  > Module_dynamic keys:`, Object.keys(dynamicData.modules.module_dynamic));
           if (dynamicData.modules.module_dynamic.major) {
-            console.log(`  > Major keys:`, Object.keys(dynamicData.modules.module_dynamic.major));
+            log.info(`  > Major keys:`, Object.keys(dynamicData.modules.module_dynamic.major));
           }
         }
       }
@@ -759,7 +759,7 @@ async function processAtMessage(atMessage: AtMessage) {
     const commentType = dynamicCard.basic?.comment_type || atMessage.item.business_id;
     const commentRid = dynamicCard.basic?.rid_str || dynamicId;
     
-    console.log(`  > Using comment parameters - type: ${commentType}, rid: ${commentRid}`);
+    log.info(`  > Using comment parameters - type: ${commentType}, rid: ${commentRid}`);
     const success = await checkIfUserCommentedAndPost(commentType, commentRid, dynamicCard, dynamicData);
     
     if (success) {
@@ -772,14 +772,14 @@ async function processAtMessage(atMessage: AtMessage) {
         uri: uri
       };
       await cloudDB.recordProcessedAtMessage(processedMessage);
-      console.log(`  > ✅ @消息 ${atMessage.id} 处理成功并已记录`);
+      log.info(`  > ✅ @消息 ${atMessage.id} 处理成功并已记录`);
     } else {
-      console.log(`  > ❌ @消息 ${atMessage.id} 处理失败，未记录，下次将重试`);
+      log.info(`  > ❌ @消息 ${atMessage.id} 处理失败，未记录，下次将重试`);
     }
 
   } catch (error) {
-    console.error(`  > Error processing @ message:`, error instanceof Error ? error.message : 'An unknown error occurred.');
-    console.log(`  > ❌ @消息 ${atMessage.id} 处理出错，未记录，下次将重试`);
+    log.error(`  > Error processing @ message:`, error instanceof Error ? error.message : 'An unknown error occurred.');
+    log.info(`  > ❌ @消息 ${atMessage.id} 处理出错，未记录，下次将重试`);
   }
 }
 
@@ -791,7 +791,7 @@ async function checkIfUserCommentedAndPost(type: number, rid: string, dynamicCar
   // 首先检查动态卡片是否包含图片，如果没有图片就不需要评论
   const images = checkImagesInDynamicCard(dynamicCard);
   if (images.length === 0) {
-    console.log(`  > 动态卡片中未发现图片，跳过评论`);
+    log.info(`  > 动态卡片中未发现图片，跳过评论`);
     return true; // 跳过但不是错误，返回true避免重试
   }
   
@@ -799,17 +799,17 @@ async function checkIfUserCommentedAndPost(type: number, rid: string, dynamicCar
   if (dynamicData) {
     const authorId = extractAuthorId(dynamicData);
     if (authorId) {
-      console.log(`  > 检查作者 ${authorId} 的每日评论限制...`);
+      log.info(`  > 检查作者 ${authorId} 的每日评论限制...`);
       const hasCommentedToday = await cloudDB.hasUserCommentedToday(authorId);
       if (hasCommentedToday) {
-        console.log(`  > 作者 ${authorId} 今天已经被评论过，跳过本次评论`);
+        log.info(`  > 作者 ${authorId} 今天已经被评论过，跳过本次评论`);
         return true; // 跳过但不是错误，返回true避免重试
       }
-      console.log(`  > 作者 ${authorId} 今天尚未被评论，可以继续检查具体动态`);
+      log.info(`  > 作者 ${authorId} 今天尚未被评论，可以继续检查具体动态`);
     }
   }
   
-  console.log(`  > Checking comments for dynamic (oid: ${rid}, type: ${type})`);
+  log.info(`  > Checking comments for dynamic (oid: ${rid}, type: ${type})`);
   try {
     const response = await apiClient.get<CommentAPIResponse>(API.getComments, {
       params: { oid: rid, type: type, mode: 3, ps: 30 },
@@ -819,13 +819,13 @@ async function checkIfUserCommentedAndPost(type: number, rid: string, dynamicCar
     if (comments) {
       for (const comment of comments) {
         if (comment.member.mid === config.uidToMonitor) {
-          console.log(`  > User ${config.uidToMonitor} has already commented. Skipping. Comment content: ${comment.content.message}`);
+          log.info(`  > User ${config.uidToMonitor} has already commented. Skipping. Comment content: ${comment.content.message}`);
           return true; // 已评论，跳过但不是错误
         }
         if (comment.replies) {
           for (const subReply of comment.replies) {
             if (subReply.member.mid === config.uidToMonitor) {
-              console.log(`  > User ${config.uidToMonitor} has already commented (in a sub-reply). Skipping.`);
+              log.info(`  > User ${config.uidToMonitor} has already commented (in a sub-reply). Skipping.`);
               return true; // 已评论，跳过但不是错误
             }
           }
@@ -833,11 +833,11 @@ async function checkIfUserCommentedAndPost(type: number, rid: string, dynamicCar
       }
     }
     
-    console.log(`  > User ${config.uidToMonitor} has not commented. Proceeding to post.`);
+    log.info(`  > User ${config.uidToMonitor} has not commented. Proceeding to post.`);
     return await postComment(type, rid, dynamicCard, dynamicData);
 
   } catch (error) {
-    console.error('  > Error fetching comments:', error instanceof Error ? error.message : 'An unknown error occurred.');
+    log.error('  > Error fetching comments:', error instanceof Error ? error.message : 'An unknown error occurred.');
     return false; // 发生异常，返回失败
   }
 }
@@ -860,9 +860,9 @@ async function postComment(type: number, rid: string, dynamicCard: DynamicCardIt
     if (dynamicData) {
       authorId = extractAuthorId(dynamicData);
       if (authorId) {
-        console.log(`  > 成功提取动态作者ID: ${authorId}`);
+        log.info(`  > 成功提取动态作者ID: ${authorId}`);
       } else {
-        console.log(`  > 无法提取动态作者ID，将跳过数据库记录`);
+        log.info(`  > 无法提取动态作者ID，将跳过数据库记录`);
       }
     }
     
@@ -875,7 +875,7 @@ async function postComment(type: number, rid: string, dynamicCard: DynamicCardIt
           const cloudAnalyzer = new CloudAnalyzer(config.openai);
           const imageUrls = images.map(img => img.url);
           
-          console.log('  > 开始分析图片中的云朵类型...');
+          log.info('  > 开始分析图片中的云朵类型...');
           
           // 使用优化后的方法，直接获取云朵类型和生成的评论
           const analysisResult = await cloudAnalyzer.analyzeMultipleImagesWithTypes(imageUrls);
@@ -883,25 +883,25 @@ async function postComment(type: number, rid: string, dynamicCard: DynamicCardIt
           cloudTypes = analysisResult.cloudTypes;
           commentText = analysisResult.comment;
           
-          console.log(`  > 检测到 ${cloudTypes.length} 种云彩类型:`);
+          log.info(`  > 检测到 ${cloudTypes.length} 种云彩类型:`);
           cloudTypes.forEach(cloud => {
-            console.log(`    - ${cloud.type} (置信度: ${cloud.confidence.toFixed(2)})`);
+            log.info(`    - ${cloud.type} (置信度: ${cloud.confidence.toFixed(2)})`);
           });
           
-          console.log('  > 使用基于云朵分析生成的comment内容');
+          log.info('  > 使用基于云朵分析生成的comment内容');
           
         } catch (error) {
-          console.error('  > 云朵分析失败:', error instanceof Error ? error.message : '未知错误');
-          console.error('  > 分析失败，停止处理该@消息，下次重试');
+          log.error('  > 云朵分析失败:', error instanceof Error ? error.message : '未知错误');
+          log.error('  > 分析失败，停止处理该@消息，下次重试');
           return false; // 返回失败状态，不进行后续处理
         }
       } else {
-        console.log('  > 未发现图片，无法进行云朵分析');
-        console.log('  > 停止处理该@消息');
+        log.info('  > 未发现图片，无法进行云朵分析');
+        log.info('  > 停止处理该@消息');
         return false; // 没有图片也返回失败，避免发送无意义评论
       }
     } else {
-      console.log('  > 云朵分析功能未启用，使用默认comment内容');
+      log.info('  > 云朵分析功能未启用，使用默认comment内容');
       // 云朵分析功能未启用时，使用默认内容，这是正常情况
       cloudTypes = [{
         type: '云朵',
@@ -926,13 +926,13 @@ async function postComment(type: number, rid: string, dynamicCard: DynamicCardIt
         
         await cloudDB.recordCheckIn(authorId, authorName, checkInRecord);
         recordSaved = true; // 标记记录已保存
-        console.log(`  > ✅ 用户 ${authorName} (${authorId}) 的云朵打卡记录已保存`);
+        log.info(`  > ✅ 用户 ${authorName} (${authorId}) 的云朵打卡记录已保存`);
         
         // 获取用户最新统计，用于生成打卡图片
         userStats = await cloudDB.getUserStats(authorId);
         
       } catch (dbError) {
-        console.error('  > 保存打卡记录失败:', dbError instanceof Error ? dbError.message : '未知错误');
+        log.error('  > 保存打卡记录失败:', dbError instanceof Error ? dbError.message : '未知错误');
       }
     }
     
@@ -940,32 +940,32 @@ async function postComment(type: number, rid: string, dynamicCard: DynamicCardIt
     let imageInfo: ImageInfo | null = null;
     if (userStats && config.enableCheckInImage) {
       try {
-        console.log('  > 📸 开始生成打卡纪念图片...');
+        log.info('  > 📸 开始生成打卡纪念图片...');
         const imagePath = await imageGenerator.generateCheckInImage(userStats);
-        console.log(`  > 打卡图片生成成功: ${imagePath}`);
+        log.info(`  > 打卡图片生成成功: ${imagePath}`);
         
-        console.log('  > 📤 开始上传图片到B站图床...');
+        log.info('  > 📤 开始上传图片到B站图床...');
         imageInfo = await uploadImageToBiliBili(imagePath);
         
         if (imageInfo) {
-          console.log('  > ✅ 打卡图片上传成功，将添加到评论表单中');
+          log.info('  > ✅ 打卡图片上传成功，将添加到评论表单中');
         } else {
-          console.log('  > ❌ 图片上传失败，跳过图片部分');
+          log.info('  > ❌ 图片上传失败，跳过图片部分');
         }
         
         // 删除本地临时图片文件
         if (fs.existsSync(imagePath)) {
           fs.unlinkSync(imagePath);
-          console.log('  > 🗑️ 已清理本地临时图片文件');
+          log.info('  > 🗑️ 已清理本地临时图片文件');
         }
         
       } catch (imageError) {
-        console.error('  > 生成或上传打卡图片失败:', imageError instanceof Error ? imageError.message : '未知错误');
-        console.log('  > 继续发送文本评论...');
+        log.error('  > 生成或上传打卡图片失败:', imageError instanceof Error ? imageError.message : '未知错误');
+        log.info('  > 继续发送文本评论...');
       }
     }
     
-    console.log(`  > 最终comment内容: ${commentText}`);
+    log.info(`  > 最终comment内容: ${commentText}`);
     
     // 构建评论payload
     const payloadData: Record<string, string> = {
@@ -982,69 +982,69 @@ async function postComment(type: number, rid: string, dynamicCard: DynamicCardIt
     // 如果有图片，添加到pictures字段
     if (imageInfo) {
       payloadData.pictures = JSON.stringify([imageInfo]);
-      console.log(`  > 添加图片到评论: ${imageInfo.img_src} (${imageInfo.img_width}x${imageInfo.img_height})`);
+      log.info(`  > 添加图片到评论: ${imageInfo.img_src} (${imageInfo.img_width}x${imageInfo.img_height})`);
     }
 
     const payload = new URLSearchParams(payloadData).toString();
 
-    console.log(`  > Attempting to post comment: "${commentText.substring(0, 100)}${commentText.length > 100 ? '...' : ''}"`);
-    console.log(`  > Comment payload:`, payload);
+    log.info(`  > Attempting to post comment: "${commentText.substring(0, 100)}${commentText.length > 100 ? '...' : ''}"`);
+    log.info(`  > Comment payload:`, payload);
     
     const response = await apiClient.post<CommentAPIResponse>(API.addComment, payload, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
     if (response.data.code === 0) {
-      console.log('  > Successfully posted comment!');
+      log.info('  > Successfully posted comment!');
       
       // 记录作者今天已经被评论过
       if (authorId) {
         try {
           await cloudDB.recordDailyComment(authorId);
         } catch (dailyRecordError) {
-          console.error('  > 记录每日评论失败:', dailyRecordError instanceof Error ? dailyRecordError.message : '未知错误');
+          log.error('  > 记录每日评论失败:', dailyRecordError instanceof Error ? dailyRecordError.message : '未知错误');
           // 每日评论记录失败不影响主流程，继续执行
         }
       }
       
       return true; // 评论发送成功
     } else {
-      console.log(
+      log.info(
         `  > Comment API response:`,
         JSON.stringify(response.data, null, 2)
       );
       
       // 评论失败，撤销已保存的记录
       if (recordSaved && authorId) {
-        console.log('  > 评论发送失败，正在撤销打卡记录...');
+        log.info('  > 评论发送失败，正在撤销打卡记录...');
         try {
           const rollbackSuccess = await cloudDB.rollbackLastCheckIn(authorId);
           if (rollbackSuccess) {
-            console.log('  > ✅ 打卡记录已成功撤销');
+            log.info('  > ✅ 打卡记录已成功撤销');
           } else {
-            console.log('  > ❌ 撤销打卡记录失败');
+            log.info('  > ❌ 撤销打卡记录失败');
           }
         } catch (rollbackError) {
-          console.error('  > 撤销打卡记录时发生错误:', rollbackError instanceof Error ? rollbackError.message : '未知错误');
+          log.error('  > 撤销打卡记录时发生错误:', rollbackError instanceof Error ? rollbackError.message : '未知错误');
         }
       }
       
       return false; // 评论发送失败
     }
   } catch (error) {
-    console.error('  > Error posting comment:', error instanceof Error ? error.message : 'An unknown error occurred.');
+    log.error('  > Error posting comment:', error instanceof Error ? error.message : 'An unknown error occurred.');
     
     // 发生异常，撤销已保存的记录
     if (recordSaved && authorId) {
-      console.log('  > 评论发送异常，正在撤销打卡记录...');
+      log.info('  > 评论发送异常，正在撤销打卡记录...');
       try {
         const rollbackSuccess = await cloudDB.rollbackLastCheckIn(authorId);
         if (rollbackSuccess) {
-          console.log('  > ✅ 打卡记录已成功撤销');
+          log.info('  > ✅ 打卡记录已成功撤销');
         } else {
-          console.log('  > ❌ 撤销打卡记录失败');
+          log.info('  > ❌ 撤销打卡记录失败');
         }
       } catch (rollbackError) {
-        console.error('  > 撤销打卡记录时发生错误:', rollbackError instanceof Error ? rollbackError.message : '未知错误');
+        log.error('  > 撤销打卡记录时发生错误:', rollbackError instanceof Error ? rollbackError.message : '未知错误');
       }
     }
     
@@ -1056,51 +1056,51 @@ async function postComment(type: number, rid: string, dynamicCard: DynamicCardIt
  * 查询用户打卡统计模式
  */
 async function queryUserStats(userId: string) {
-  console.log(`正在查询用户 ${userId} 的打卡统计...`);
+  log.info(`正在查询用户 ${userId} 的打卡统计...`);
   
   try {
     const userStats = await cloudDB.getUserStats(userId);
     
     if (!userStats) {
-      console.log(`❌ 用户 ${userId} 还没有打卡记录`);
+      log.info(`❌ 用户 ${userId} 还没有打卡记录`);
       return;
     }
     
     // 生成用户报告
     const report = await cloudDB.generateUserReport(userId);
-    console.log('\n' + '='.repeat(50));
-    console.log(report);
-    console.log('='.repeat(50));
+    log.info('\n' + '='.repeat(50));
+    log.info(report || '用户没有打卡记录');
+    log.info('='.repeat(50));
     
     // 显示最近的打卡记录
     const recentCheckIns = await cloudDB.getRecentCheckIns(userId, 5);
     if (recentCheckIns.length > 0) {
-      console.log('\n📋 最近5次打卡记录:');
+      log.info('\n📋 最近5次打卡记录:');
       recentCheckIns.forEach((record, index) => {
         const date = new Date(record.timestamp).toLocaleString('zh-CN');
         const cloudTypesStr = record.cloudTypes.map(c => c.type).join(', ');
-        console.log(`${index + 1}. ${date}`);
-        console.log(`   动态ID: ${record.dynamicId}`);
-        console.log(`   云彩类型: ${cloudTypesStr}`);
-        console.log(`   图片数量: ${record.imageCount}`);
-        console.log(`   分析结果: ${record.analysis.substring(0, 100)}...`);
-        console.log('');
+        log.info(`${index + 1}. ${date}`);
+        log.info(`   动态ID: ${record.dynamicId}`);
+        log.info(`   云彩类型: ${cloudTypesStr}`);
+        log.info(`   图片数量: ${record.imageCount}`);
+        log.info(`   分析结果: ${record.analysis.substring(0, 100)}...`);
+        log.info('');
       });
     }
     
     // 生成打卡纪念图
     try {
-      console.log('\n🎨 正在生成打卡纪念图...');
+      log.info('\n🎨 正在生成打卡纪念图...');
       const imagePath = await imageGenerator.generateCheckInImage(userStats);
-      console.log(`🖼️  纪念图保存位置: ${imagePath}`);
-      console.log('💡 您可以在文件管理器中打开查看纪念图！');
+      log.info(`🖼️  纪念图保存位置: ${imagePath}`);
+      log.info('💡 您可以在文件管理器中打开查看纪念图！');
     } catch (imageError) {
-      console.error('🚫 生成纪念图失败:', imageError instanceof Error ? imageError.message : '未知错误');
-      console.log('💭 不过您的统计数据都是正确的，图片功能是额外的小彩蛋～');
+      log.error('🚫 生成纪念图失败:', imageError instanceof Error ? imageError.message : '未知错误');
+      log.info('💭 不过您的统计数据都是正确的，图片功能是额外的小彩蛋～');
     }
     
   } catch (error) {
-    console.error('查询用户统计失败:', error instanceof Error ? error.message : '未知错误');
+    log.error('查询用户统计失败:', error instanceof Error ? error.message : '未知错误');
   }
 }
 
@@ -1108,31 +1108,31 @@ async function queryUserStats(userId: string) {
  * 显示全局统计信息
  */
 async function showGlobalStats() {
-  console.log('正在获取全局统计信息...');
+  log.info('正在获取全局统计信息...');
   
   try {
     // 云彩类型排行榜
     const cloudRanking = await cloudDB.getGlobalCloudTypeRanking();
     if (cloudRanking.length > 0) {
-      console.log('\n☁️ 全球云彩类型排行榜:');
+      log.info('\n☁️ 全球云彩类型排行榜:');
       cloudRanking.slice(0, 10).forEach((item, index) => {
         const emoji = ['🥇', '🥈', '🥉'][index] || '🏅';
-        console.log(`${emoji} ${item.type}: ${item.count} 次`);
+        log.info(`${emoji} ${item.type}: ${item.count} 次`);
       });
     }
     
     // 活跃用户排行榜
     const activeUsers = await cloudDB.getActiveUsersRanking(10);
     if (activeUsers.length > 0) {
-      console.log('\n🏆 活跃用户排行榜:');
+      log.info('\n🏆 活跃用户排行榜:');
       activeUsers.forEach((user, index) => {
         const emoji = ['🥇', '🥈', '🥉'][index] || '🏅';
-        console.log(`${emoji} 用户 ${user.userId}: ${user.checkIns} 次打卡, ${user.cloudTypes} 种云彩`);
+        log.info(`${emoji} 用户 ${user.userId}: ${user.checkIns} 次打卡, ${user.cloudTypes} 种云彩`);
       });
     }
     
   } catch (error) {
-    console.error('获取全局统计失败:', error instanceof Error ? error.message : '未知错误');
+    log.error('获取全局统计失败:', error instanceof Error ? error.message : '未知错误');
   }
 }
 
@@ -1140,15 +1140,15 @@ async function showGlobalStats() {
  * 测试模式：获取最近的@消息，生成comment内容但不发布
  */
 async function testMode() {
-  console.log('Starting Test Mode - 测试comment生成效果...');
+  log.info('Starting Test Mode - 测试comment生成效果...');
   
   if (config.cookie === 'YOUR_COOKIE_STRING_HERE') {
-    console.error('Please fill in your cookie in src/config.ts before running the bot.');
+    log.error('Please fill in your cookie in src/config.ts before running the bot.');
     return;
   }
 
   try {
-    console.log('正在获取最近的@消息...');
+    log.info('正在获取最近的@消息...');
     const response = await apiClient.get<AtFeedResponse>(API.getAtFeed, {
       params: { 
         platform: 'web',
@@ -1160,15 +1160,15 @@ async function testMode() {
 
     const atMessages = response.data?.data?.items;
     if (!atMessages || atMessages.length === 0) {
-      console.log('未找到@消息');
+      log.info('未找到@消息');
       return;
     }
 
     // 获取最新的@消息
     const latestAtMessage = atMessages[0];
-    console.log(`找到最新@消息! ID: ${latestAtMessage.id}, 来自: ${latestAtMessage.user.nickname}`);
-    console.log(`消息标题: ${latestAtMessage.item.title}`);
-    console.log(`URI: ${latestAtMessage.item.uri}`);
+    log.info(`找到最新@消息! ID: ${latestAtMessage.id}, 来自: ${latestAtMessage.user.nickname}`);
+    log.info(`消息标题: ${latestAtMessage.item.title}`);
+    log.info(`URI: ${latestAtMessage.item.uri}`);
 
     // 从URI中提取动态ID
     let dynamicId: string;
@@ -1179,7 +1179,7 @@ async function testMode() {
       if (opusMatch && opusMatch[1]) {
         dynamicId = opusMatch[1];
       } else {
-        console.log(`无法从URI中提取opus ID: ${uri}`);
+        log.info(`无法从URI中提取opus ID: ${uri}`);
         return;
       }
     } else if (uri.includes('t.bilibili.com/')) {
@@ -1187,15 +1187,15 @@ async function testMode() {
       if (dynamicMatch && dynamicMatch[1]) {
         dynamicId = dynamicMatch[1];
       } else {
-        console.log(`无法从URI中提取动态ID: ${uri}`);
+        log.info(`无法从URI中提取动态ID: ${uri}`);
         return;
       }
     } else {
-      console.log(`不支持的URI格式: ${uri}`);
+      log.info(`不支持的URI格式: ${uri}`);
       return;
     }
 
-    console.log(`正在处理动态ID: ${dynamicId}`);
+    log.info(`正在处理动态ID: ${dynamicId}`);
 
     // 获取动态详情
     let dynamicResponse;
@@ -1203,30 +1203,30 @@ async function testMode() {
     
     if (uri.includes('/opus/')) {
       try {
-        console.log('使用opus API获取动态详情...');
+        log.info('使用opus API获取动态详情...');
         dynamicResponse = await apiClient.get('https://api.bilibili.com/x/polymer/web-dynamic/v1/opus/detail', {
           params: { id: dynamicId }
         });
         dynamicData = dynamicResponse.data?.data?.item;
       } catch (error) {
-        console.log(`获取opus详情失败: ${error instanceof Error ? error.message : '未知错误'}`);
+        log.info(`获取opus详情失败: ${error instanceof Error ? error.message : '未知错误'}`);
       }
     }
     
     if (!dynamicData) {
       try {
-        console.log('使用通用API获取动态详情...');
+        log.info('使用通用API获取动态详情...');
         dynamicResponse = await apiClient.get(API.getDynamicDetails, {
           params: { id: dynamicId }
         });
         dynamicData = dynamicResponse.data?.data?.item;
       } catch (error) {
-        console.log(`获取动态详情失败: ${error instanceof Error ? error.message : '未知错误'}`);
+        log.info(`获取动态详情失败: ${error instanceof Error ? error.message : '未知错误'}`);
       }
     }
 
     if (!dynamicData) {
-      console.log(`无法获取动态详情，动态ID: ${dynamicId}`);
+      log.info(`无法获取动态详情，动态ID: ${dynamicId}`);
       return;
     }
 
@@ -1243,8 +1243,8 @@ async function testMode() {
     // 检查图片
     const images = checkImagesInDynamicCard(dynamicCard);
     if (images.length === 0) {
-      console.log('该动态中未发现图片，无法生成云朵分析comment');
-      console.log(`默认comment内容: "${config.commentText}"`);
+      log.info('该动态中未发现图片，无法生成云朵分析comment');
+      log.info(`默认comment内容: "${config.commentText}"`);
       return;
     }
     
@@ -1252,16 +1252,16 @@ async function testMode() {
     const targetTopicId = 38405;
     const hasTargetTopic = checkTopicIdInDynamicCard(dynamicCard, targetTopicId);
     if (!hasTargetTopic) {
-      console.log(`该动态中未发现话题ID ${targetTopicId}（云有所伊），无法生成comment`);
-      console.log(`默认comment内容: "${config.commentText}"`);
+      log.info(`该动态中未发现话题ID ${targetTopicId}（云有所伊），无法生成comment`);
+      log.info(`默认comment内容: "${config.commentText}"`);
       return;
     }
     
-    console.log(`验证通过：动态包含图片且话题ID为 ${targetTopicId}（云有所伊）`);
+    log.info(`验证通过：动态包含图片且话题ID为 ${targetTopicId}（云有所伊）`);
 
-    console.log(`发现 ${images.length} 张图片:`);
+    log.info(`发现 ${images.length} 张图片:`);
     images.forEach((image, index) => {
-      console.log(`  ${index + 1}. ${image.description}: ${image.url}`);
+      log.info(`  ${index + 1}. ${image.description}: ${image.url}`);
     });
 
     // 生成comment内容并记录打卡数据
@@ -1271,9 +1271,9 @@ async function testMode() {
     // 提取作者ID
     const authorId = extractAuthorId(dynamicData);
     if (authorId) {
-      console.log(`\n📝 检测到动态作者ID: ${authorId}`);
+      log.info(`\n📝 检测到动态作者ID: ${authorId}`);
     } else {
-      console.log(`\n⚠️  无法提取动态作者ID，将跳过数据库记录`);
+      log.info(`\n⚠️  无法提取动态作者ID，将跳过数据库记录`);
     }
     
     if (config.enableCloudAnalysis) {
@@ -1281,7 +1281,7 @@ async function testMode() {
         const cloudAnalyzer = new CloudAnalyzer(config.openai);
         const imageUrls = images.map(img => img.url);
         
-        console.log('\n=== 开始云朵分析 ===');
+        log.info('\n=== 开始云朵分析 ===');
         
         // 使用优化后的方法，直接获取云朵类型和生成的评论
         const analysisResult = await cloudAnalyzer.analyzeMultipleImagesWithTypes(imageUrls);
@@ -1289,23 +1289,23 @@ async function testMode() {
         cloudTypes = analysisResult.cloudTypes;
         commentText = analysisResult.comment;
         
-        console.log(`\n=== 检测到 ${cloudTypes.length} 种云彩类型 ===`);
+        log.info(`\n=== 检测到 ${cloudTypes.length} 种云彩类型 ===`);
         cloudTypes.forEach(cloud => {
-          console.log(`☁️  ${cloud.type} (置信度: ${cloud.confidence.toFixed(2)})`);
+          log.info(`☁️  ${cloud.type} (置信度: ${cloud.confidence.toFixed(2)})`);
         });
         
-        console.log('\n=== 生成的comment内容 ===');
-        console.log(`"${commentText}"`);
+        log.info('\n=== 生成的comment内容 ===');
+        log.info(`"${commentText}"`);
         
       } catch (error) {
-        console.error('\n=== 云朵分析失败 ===');
-        console.error(error instanceof Error ? error.message : '未知错误');
-        console.log('❌ 分析失败，跳过后续处理');
+        log.error('\n=== 云朵分析失败 ===');
+        log.error(error instanceof Error ? error.message : '未知错误');
+        log.info('❌ 分析失败，跳过后续处理');
         return; // 直接返回，跳过后续的数据库保存和图片生成
       }
     } else {
-      console.log('\n=== 云朵分析功能未启用，使用默认comment ===');
-      console.log(`"${commentText}"`);
+      log.info('\n=== 云朵分析功能未启用，使用默认comment ===');
+      log.info(`"${commentText}"`);
       
       // 未启用分析时也记录基础信息
       cloudTypes = [{
@@ -1318,7 +1318,7 @@ async function testMode() {
     // 保存打卡记录到数据库（测试模式也记录）
     if (authorId && cloudTypes.length > 0) {
       try {
-        console.log('\n=== 保存打卡记录到数据库 ===');
+        log.info('\n=== 保存打卡记录到数据库 ===');
         
         const authorName = extractAuthorName(dynamicData) || `用户${authorId}`;
         const checkInRecord: CheckInRecord = {
@@ -1330,36 +1330,36 @@ async function testMode() {
         };
         
         await cloudDB.recordCheckIn(authorId, authorName, checkInRecord);
-        console.log(`✅ 用户 ${authorName} (${authorId}) 的云朵打卡记录已保存到数据库`);
+        log.info(`✅ 用户 ${authorName} (${authorId}) 的云朵打卡记录已保存到数据库`);
         
         // 显示用户最新统计
         const userStats = await cloudDB.getUserStats(authorId);
         if (userStats) {
-          console.log(`📊 用户当前统计: 总打卡 ${userStats.totalCheckIns} 次, 发现 ${Object.keys(userStats.cloudTypeStats).length} 种云彩`);
+          log.info(`📊 用户当前统计: 总打卡 ${userStats.totalCheckIns} 次, 发现 ${Object.keys(userStats.cloudTypeStats).length} 种云彩`);
           
           // 在测试模式中生成打卡纪念图片（但不上传）
           if (config.enableCheckInImage) {
             try {
-              console.log('\n=== 生成打卡纪念图片（测试模式）===');
+              log.info('\n=== 生成打卡纪念图片（测试模式）===');
               const imagePath = await imageGenerator.generateCheckInImage(userStats);
-              console.log(`📸 打卡纪念图片已生成: ${imagePath}`);
-              console.log('💡 在测试模式下，图片已保存到本地，但不会上传到B站图床');
+              log.info(`📸 打卡纪念图片已生成: ${imagePath}`);
+              log.info('💡 在测试模式下，图片已保存到本地，但不会上传到B站图床');
             } catch (imageError) {
-              console.error('❌ 生成打卡图片失败:', imageError instanceof Error ? imageError.message : '未知错误');
+              log.error('❌ 生成打卡图片失败:', imageError instanceof Error ? imageError.message : '未知错误');
             }
           }
         }
         
       } catch (dbError) {
-        console.error('❌ 保存打卡记录失败:', dbError instanceof Error ? dbError.message : '未知错误');
+        log.error('❌ 保存打卡记录失败:', dbError instanceof Error ? dbError.message : '未知错误');
       }
     }
 
-    console.log('\n=== 测试完成 ===');
-    console.log('注意：在测试模式下，comment不会被实际发布，但打卡数据已记录到数据库');
+    log.info('\n=== 测试完成 ===');
+    log.info('注意：在测试模式下，comment不会被实际发布，但打卡数据已记录到数据库');
 
   } catch (error) {
-    console.error('测试模式出错:', error instanceof Error ? error.message : '未知错误');
+    log.error('测试模式出错:', error instanceof Error ? error.message : '未知错误');
   }
 }
 
@@ -1367,28 +1367,28 @@ async function testMode() {
  * 清除指定@消息的处理记录
  */
 async function clearProcessedMessage(atMessageId: number) {
-  console.log(`正在清除@消息 ${atMessageId} 的处理记录...`);
+  log.info(`正在清除@消息 ${atMessageId} 的处理记录...`);
   
   // 检查记录是否存在
   const existingRecord = await cloudDB.getProcessedAtMessage(atMessageId);
   if (!existingRecord) {
-    console.log(`❌ @消息 ${atMessageId} 的处理记录不存在`);
+    log.info(`❌ @消息 ${atMessageId} 的处理记录不存在`);
     return;
   }
   
-  console.log(`📋 找到记录:`);
-  console.log(`  - @消息ID: ${existingRecord.atMessageId}`);
-  console.log(`  - 动态ID: ${existingRecord.dynamicId}`);
-  console.log(`  - 处理时间: ${new Date(existingRecord.processedAt).toLocaleString()}`);
-  console.log(`  - 来源用户: ${existingRecord.fromUser}`);
-  console.log(`  - URI: ${existingRecord.uri}`);
+  log.info(`📋 找到记录:`);
+  log.info(`  - @消息ID: ${existingRecord.atMessageId}`);
+  log.info(`  - 动态ID: ${existingRecord.dynamicId}`);
+  log.info(`  - 处理时间: ${new Date(existingRecord.processedAt).toLocaleString()}`);
+  log.info(`  - 来源用户: ${existingRecord.fromUser}`);
+  log.info(`  - URI: ${existingRecord.uri}`);
   
   // 删除记录
   const success = await cloudDB.deleteProcessedAtMessage(atMessageId);
   if (success) {
-    console.log(`✅ @消息 ${atMessageId} 的处理记录已清除，下次运行时将重新处理`);
+    log.info(`✅ @消息 ${atMessageId} 的处理记录已清除，下次运行时将重新处理`);
   } else {
-    console.log(`❌ 清除@消息 ${atMessageId} 的处理记录失败`);
+    log.info(`❌ 清除@消息 ${atMessageId} 的处理记录失败`);
   }
 }
 
@@ -1396,16 +1396,16 @@ async function clearProcessedMessage(atMessageId: number) {
  * 列出所有已处理的@消息
  */
 async function listProcessedMessages() {
-  console.log('正在获取所有已处理的@消息记录...');
+  log.info('正在获取所有已处理的@消息记录...');
   
   const processedIds = await cloudDB.listProcessedAtMessages();
   if (processedIds.length === 0) {
-    console.log('📭 没有找到已处理的@消息记录');
+    log.info('📭 没有找到已处理的@消息记录');
     return;
   }
   
-  console.log(`📋 找到 ${processedIds.length} 条已处理的@消息记录:`);
-  console.log('');
+  log.info(`📋 找到 ${processedIds.length} 条已处理的@消息记录:`);
+  log.info('');
   
   // 显示前10条记录的详细信息
   const displayCount = Math.min(10, processedIds.length);
@@ -1413,19 +1413,19 @@ async function listProcessedMessages() {
     const atMessageId = processedIds[i];
     const record = await cloudDB.getProcessedAtMessage(atMessageId);
     if (record) {
-      console.log(`${i + 1}. @消息ID: ${record.atMessageId}`);
-      console.log(`   动态ID: ${record.dynamicId}`);
-      console.log(`   处理时间: ${new Date(record.processedAt).toLocaleString()}`);
-      console.log(`   来源用户: ${record.fromUser}`);
-      console.log('');
+      log.info(`${i + 1}. @消息ID: ${record.atMessageId}`);
+      log.info(`   动态ID: ${record.dynamicId}`);
+      log.info(`   处理时间: ${new Date(record.processedAt).toLocaleString()}`);
+      log.info(`   来源用户: ${record.fromUser}`);
+      log.info('');
     }
   }
   
   if (processedIds.length > 10) {
-    console.log(`... 还有 ${processedIds.length - 10} 条记录`);
+    log.info(`... 还有 ${processedIds.length - 10} 条记录`);
   }
   
-  console.log('💡 使用 --clear-message <消息ID> 来清除指定消息的处理记录');
+  log.info('💡 使用 --clear-message <消息ID> 来清除指定消息的处理记录');
 }
 
 /**
@@ -1447,7 +1447,7 @@ function main() {
       const userId = args[userIdIndex + 1];
       queryUserStats(userId);
     } else {
-      console.log('请指定用户ID: --stats --user <用户ID>');
+      log.info('请指定用户ID: --stats --user <用户ID>');
     }
     return;
   }
@@ -1465,10 +1465,10 @@ function main() {
       if (!isNaN(atMessageId)) {
         clearProcessedMessage(atMessageId);
       } else {
-        console.log('请提供有效的@消息ID (数字)');
+        log.info('请提供有效的@消息ID (数字)');
       }
     } else {
-      console.log('请提供@消息ID: --clear-message <消息ID>');
+      log.info('请提供@消息ID: --clear-message <消息ID>');
     }
     return;
   }
@@ -1479,32 +1479,32 @@ function main() {
   }
 
   if (args.includes('--help')) {
-    console.log('云朵打卡机器人使用说明:');
-    console.log('');
-    console.log('命令行参数:');
-    console.log('  无参数           - 启动机器人监听模式');
-    console.log('  --test          - 测试模式，分析最新@消息但不发布评论（包含图片生成）');
-    console.log('  --stats --user <ID>  - 查询指定用户的打卡统计');
-    console.log('  --global        - 显示全局统计信息');
-    console.log('  --clear-message <消息ID> - 清除指定@消息的处理记录');
-    console.log('  --list-messages - 列出所有已处理的@消息');
-    console.log('  --help          - 显示此帮助信息');
-    console.log('');
-    console.log('示例:');
-    console.log('  npm start                    # 启动机器人');
-    console.log('  npm start -- --test          # 测试模式');
-    console.log('  npm start -- --stats --user 123456  # 查询用户统计');
-    console.log('  npm start -- --global        # 全局统计');
-    console.log('  npm start -- --list-messages # 列出已处理的@消息');
-    console.log('  npm start -- --clear-message 12345  # 清除@消息12345的处理记录');
+    log.info('云朵打卡机器人使用说明:');
+    log.info('');
+    log.info('命令行参数:');
+    log.info('  无参数           - 启动机器人监听模式');
+    log.info('  --test          - 测试模式，分析最新@消息但不发布评论（包含图片生成）');
+    log.info('  --stats --user <ID>  - 查询指定用户的打卡统计');
+    log.info('  --global        - 显示全局统计信息');
+    log.info('  --clear-message <消息ID> - 清除指定@消息的处理记录');
+    log.info('  --list-messages - 列出所有已处理的@消息');
+    log.info('  --help          - 显示此帮助信息');
+    log.info('');
+    log.info('示例:');
+    log.info('  npm start                    # 启动机器人');
+    log.info('  npm start -- --test          # 测试模式');
+    log.info('  npm start -- --stats --user 123456  # 查询用户统计');
+    log.info('  npm start -- --global        # 全局统计');
+    log.info('  npm start -- --list-messages # 列出已处理的@消息');
+    log.info('  npm start -- --clear-message 12345  # 清除@消息12345的处理记录');
     return;
   }
 
-  console.log('Starting Bilibili @ Message Comment Bot...');
-  console.log('💡 提示: 使用 --help 查看所有可用命令');
+  log.info('Starting Bilibili @ Message Comment Bot...');
+  log.info('💡 提示: 使用 --help 查看所有可用命令');
 
   if (config.cookie === 'YOUR_COOKIE_STRING_HERE') {
-    console.error('Please fill in your cookie in src/config.ts before running the bot.');
+    log.error('Please fill in your cookie in src/config.ts before running the bot.');
     return;
   }
 
