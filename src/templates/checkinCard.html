@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>云有所伊 - 打卡纪念图</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --glass-bg: rgba(232, 241, 252, 0.9);
+            --glass-border: rgba(255, 255, 255, 0.95);
+            --glass-shadow: rgba(0, 0, 0, 0.1);
+            --text-primary: rgba(44, 62, 80, 0.95);
+            --text-secondary: rgba(44, 62, 80, 0.75);
+            --text-tertiary: rgba(44, 62, 80, 0.6);
+            --accent-blue: #3498db;
+            --success-green: #27ae60;
+            --radius-large: 16px;
+            --radius-medium: 12px;
+            --radius-small: 8px;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'SF Pro Display', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            padding: 0;
+            width: 700px;
+            height: 450px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* 图片生成专用容器 */
+        .main-container,
+        .stamp-book {
+            width: 700px;
+            height: 410px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 2px solid var(--glass-border);
+            border-radius: var(--radius-large);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+        }
+        
+        /* 简化的Header设计 */
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+            margin-bottom: 16px;
+            padding: 0 8px;
+            flex-shrink: 0;
+            border-bottom: 1px solid rgba(44, 62, 80, 0.1);
+        }
+        
+        .app-branding {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .app-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-blue), #74b9ff);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+        }
+        
+        .app-title-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .app-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.3px;
+            margin: 0;
+        }
+        
+        .generate-time {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--text-tertiary);
+            margin: 0;
+            opacity: 0.8;
+        }
+        
+        .app-subtitle {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+        
+        .stats-summary {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+        
+        .stat-item {
+            text-align: center;
+            min-width: 60px;
+        }
+        
+        .stat-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+            line-height: 1;
+        }
+        
+        .stat-label {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        /* 主内容区域 */
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 314px; /* 410 - 32(padding) - 60(header) - 16(margin) */
+        }
+        
+        /* WMO标准10种云属的2x5网格 */
+        .clouds-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 120px);
+            grid-template-rows: repeat(2, 120px);
+            gap: 16px;
+            justify-content: center;
+            align-content: center;
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* WMO标准云彩卡片 */
+        .cloud-card {
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            border-radius: var(--radius-medium);
+            padding: 12px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .cloud-card.completed {
+            background: rgba(39, 174, 96, 0.15);
+            border-color: rgba(39, 174, 96, 0.3);
+        }
+        
+        .cloud-card.completed::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 24px 24px 0;
+            border-color: transparent var(--success-green) transparent transparent;
+        }
+        
+        .cloud-card.completed::after {
+            content: '✓';
+            position: absolute;
+            top: 2px;
+            right: 3px;
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            z-index: 1;
+        }
+        
+        .cloud-header {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .cloud-icon {
+            font-size: 30px;
+            margin-bottom: 6px;
+            display: block;
+        }
+        
+        .cloud-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 3px;
+            line-height: 1.1;
+        }
+        
+        .cloud-type {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .cloud-stats {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 6px 8px;
+        }
+        
+        .checkin-count {
+            position: absolute;
+            bottom: 6px;
+            left: 6px;
+            display: flex;
+            align-items: baseline;
+            gap: 2px;
+        }
+        
+        .count-number {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+        
+        .count-label {
+            font-size: 8px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 1px;
+        }
+        
+        .status-indicator {
+            position: absolute;
+            bottom: 6px;
+            right: 6px;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-tertiary);
+        }
+        
+        .cloud-card.completed .status-indicator {
+            background: var(--success-green);
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container stamp-book">
+        <!-- 简化的头部设计 -->
+        <div class="header-section">
+            <div class="app-branding">
+                <div class="app-icon">☁️</div>
+                <div class="app-title-group">
+                    <h1 class="app-title"># 云有所伊</h1>
+                    <div class="generate-time">{{generateTime}}</div>
+                </div>
+            </div>
+            
+            <div class="stats-summary">
+                <div class="stat-item">
+                    <div class="stat-value">{{userName}}</div>
+                    <div class="stat-label">用户</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{totalCheckIns}}</div>
+                    <div class="stat-label">总打卡</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 主内容区域 -->
+        <div class="content-area">
+            <!-- WMO标准10种云属的2x5网格 -->
+            <div class="clouds-grid">
+                <!-- 第一行：高云族 + 中云族 -->
+                
+                <!-- 卷云 (高云族) -->
+                <div class="cloud-card {{#if cloudStamps.0.isCompleted}}completed{{/if}}">
+                    <div class="cloud-header">
+                        <div class="cloud-icon">🌤️</div>
+                        <div class="cloud-name">卷云</div>
+                        <div class="cloud-type">Ci</div>
+                    </div>
+                    {{#if cloudStamps.0.isCompleted}}
+                    <div class="checkin-count">
+                        <span class="count-number">{{cloudStamps.0.count}}</span>
+                        <span class="count-label">次</span>
+                    </div>
+                    {{/if}}
+                    <div class="status-indicator"></div>
+                </div>
+                
+                <!-- 卷积云 (高云族) -->
+                <div class="cloud-card {{#if cloudStamps.1.isCompleted}}completed{{/if}}">
+                    <div class="cloud-header">
+                        <div class="cloud-icon">🌨️</div>
+                        <div class="cloud-name">卷积云</div>
+                        <div class="cloud-type">Cc</div>
+                    </div>
+                    {{#if cloudStamps.1.isCompleted}}
+                    <div class="checkin-count">
+                        <span class="count-number">{{cloudStamps.1.count}}</span>
+                        <span class="count-label">次</span>
+                    </div>
+                    {{/if}}
+                    <div class="status-indicator"></div>
+                </div>
+                
+                <!-- 卷层云 (高云族) -->
+                <div class="cloud-card {{#if cloudStamps.2.isCompleted}}completed{{/if}}">
+                    <div class="cloud-header">
+                        <div class="cloud-icon">🌫️</div>
+                        <div class="cloud-name">卷层云</div>
+                        <div class="cloud-type">Cs</div>
+                    </div>
+                    {{#if cloudStamps.2.isCompleted}}
+                    <div class="checkin-count">
+                        <span class="count-number">{{cloudStamps.2.count}}</span>
+                        <span class="count-label">次</span>
+                    </div>
+                    {{/if}}
+                    <div class="status-indicator"></div>
+                </div>
+                
+                <!-- 高积云 (中云族) -->
+                <div class="cloud-card {{#if cloudStamps.3.isCompleted}}completed{{/if}}">
+                    <div class="cloud-header">
+                        <div class="cloud-icon">⛅</div>
+                        <div class="cloud-name">高积云</div>
+                        <div class="cloud-type">Ac</div>
+                    </div>
+                    {{#if cloudStamps.3.isCompleted}}
+                    <div class="checkin-count">
+                        <span class="count-number">{{cloudStamps.3.count}}</span>
+                        <span class="count-label">次</span>
+                    </div>
+                    {{/if}}
+                    <div class="status-indicator"></div>
+                </div>
+                
+                <!-- 高层云 (中云族) -->
+                <div class="cloud-card {{#if cloudStamps.4.isCompleted}}completed{{/if}}">
+                    <div class="cloud-header">
+                        <div class="cloud-icon">🌥️</div>
+                        <div class="cloud-name">高层云</div>
+                        <div class="cloud-type">As</div>
+                    </div>
+                    {{#if cloudStamps.4.isCompleted}}
+                    <div class="checkin-count">
+                        <span class="count-number">{{cloudStamps.4.count}}</span>
+                        <span class="count-label">次</span>
+                    </div>
+                    {{/if}}
+                    <div class="status-indicator"></div>
+                </div>
+                
+                <!-- 第二行：低云族 + 降水云 -->
+                
+                <!-- 层积云 (低云族) -->
+                <div class="cloud-card {{#if cloudStamps.5.isCompleted}}completed{{/if}}">
+                    <div class="cloud-header">
+                        <div class="cloud-icon">⛅</div>
+                        <div class="cloud-name">层积云</div>
+                        <div class="cloud-type">Sc</div>
+                    </div>
+                    {{#if cloudStamps.5.isCompleted}}
+                    <div class="checkin-count">
+                        <span class="count-number">{{cloudStamps.5.count}}</span>
+                        <span class="count-label">次</span>
+                    </div>
+                    {{/if}}
+                    <div class="status-indicator"></div>
+                </div>
+                
+                <!-- 层云 (低云族) -->
+                <div class="cloud-card {{#if cloudStamps.6.isCompleted}}completed{{/if}}">
+                    <div class="cloud-header">
+                        <div class="cloud-icon">🌫️</div>
+                        <div class="cloud-name">层云</div>
+                        <div class="cloud-type">St</div>
+                    </div>
+                    {{#if cloudStamps.6.isCompleted}}
+                    <div class="checkin-count">
+                        <span class="count-number">{{cloudStamps.6.count}}</span>
+                        <span class="count-label">次</span>
+                    </div>
+                    {{/if}}
+                    <div class="status-indicator"></div>
+                </div>
+                
+                <!-- 积云 (低云族) -->
+                <div class="cloud-card {{#if cloudStamps.7.isCompleted}}completed{{/if}}">
+                    <div class="cloud-header">
+                        <div class="cloud-icon">☁️</div>
+                        <div class="cloud-name">积云</div>
+                        <div class="cloud-type">Cu</div>
+                    </div>
+                    {{#if cloudStamps.7.isCompleted}}
+                    <div class="checkin-count">
+                        <span class="count-number">{{cloudStamps.7.count}}</span>
+                        <span class="count-label">次</span>
+                    </div>
+                    {{/if}}
+                    <div class="status-indicator"></div>
+                </div>
+                
+                <!-- 积雨云 (低云族) -->
+                <div class="cloud-card {{#if cloudStamps.8.isCompleted}}completed{{/if}}">
+                    <div class="cloud-header">
+                        <div class="cloud-icon">⛈️</div>
+                        <div class="cloud-name">积雨云</div>
+                        <div class="cloud-type">Cb</div>
+                    </div>
+                    {{#if cloudStamps.8.isCompleted}}
+                    <div class="checkin-count">
+                        <span class="count-number">{{cloudStamps.8.count}}</span>
+                        <span class="count-label">次</span>
+                    </div>
+                    {{/if}}
+                    <div class="status-indicator"></div>
+                </div>
+                
+                <!-- 雨层云 (降水云) -->
+                <div class="cloud-card {{#if cloudStamps.9.isCompleted}}completed{{/if}}">
+                    <div class="cloud-header">
+                        <div class="cloud-icon">🌧️</div>
+                        <div class="cloud-name">雨层云</div>
+                        <div class="cloud-type">Ns</div>
+                    </div>
+                    {{#if cloudStamps.9.isCompleted}}
+                    <div class="checkin-count">
+                        <span class="count-number">{{cloudStamps.9.count}}</span>
+                        <span class="count-label">次</span>
+                    </div>
+                    {{/if}}
+                    <div class="status-indicator"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 
