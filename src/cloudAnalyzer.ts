@@ -1,7 +1,6 @@
 // src/cloudAnalyzer.ts
-import axios from 'axios';
-import { CloudType } from './database';
-
+import axios from "axios";
+import { CloudType } from "./database";
 
 // OpenAI Compatible API 配置接口
 interface OpenAIConfig {
@@ -12,9 +11,9 @@ interface OpenAIConfig {
 
 // 默认配置
 const defaultConfig: OpenAIConfig = {
-  apiKey: process.env.OPENAI_API_KEY || '',
-  baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
-  model: process.env.OPENAI_MODEL || 'gpt-4o-mini'
+  apiKey: process.env.OPENAI_API_KEY || "",
+  baseURL: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
+  model: process.env.OPENAI_MODEL || "gpt-4o-mini",
 };
 
 class CloudAnalyzer {
@@ -26,12 +25,12 @@ class CloudAnalyzer {
     this.client = axios.create({
       baseURL: this.config.baseURL,
       headers: {
-        'Authorization': `Bearer ${this.config.apiKey}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.config.apiKey}`,
+        "Content-Type": "application/json",
       },
     });
   }
-  
+
   /**
    * 提取结构化的云朵类型信息
    * @param imageUrl 图片URL
@@ -51,22 +50,22 @@ class CloudAnalyzer {
 请识别图片中可能出现的云朵类型，世界气象组织(WMO)标准的10个基本云属：
 
 **高云族 (5-13km):**
-- 卷云 (Cirrus, Ci)
-- 卷积云 (Cirrocumulus, Cc)
-- 卷层云 (Cirrostratus, Cs)
+- 卷云
+- 卷积云
+- 卷层云
 
 **中云族 (2-7km):**
-- 高积云 (Altocumulus, Ac)
-- 高层云 (Altostratus, As)
+- 高积云
+- 高层云
 
 **低云族 (0-2km):**
-- 层积云 (Stratocumulus, Sc)
-- 层云 (Stratus, St)
-- 积云 (Cumulus, Cu)
-- 积雨云 (Cumulonimbus, Cb)
+- 层积云
+- 层云
+- 积云
+- 积雨云
 
 **降水云:**
-- 雨层云 (Nimbostratus, Ns)
+- 雨层云
 
 返回格式：
 {
@@ -108,33 +107,42 @@ class CloudAnalyzer {
         // 尝试解析JSON
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
-          throw new Error('无法从响应中提取JSON格式数据');
+          throw new Error("无法从响应中提取JSON格式数据");
         }
-        
+
         const jsonStr = jsonMatch[0];
         const result = JSON.parse(jsonStr);
-        
-        if (!result.cloudTypes || !Array.isArray(result.cloudTypes) || result.cloudTypes.length === 0) {
-          throw new Error('JSON格式不正确或未包含有效的云朵类型数据');
+
+        if (
+          !result.cloudTypes ||
+          !Array.isArray(result.cloudTypes) ||
+          result.cloudTypes.length === 0
+        ) {
+          throw new Error("JSON格式不正确或未包含有效的云朵类型数据");
         }
-        
+
         const cloudTypes = result.cloudTypes.map((cloud: any) => ({
-          type: cloud.type || 'Unknown',
+          type: cloud.type || "Unknown",
           confidence: Math.min(1, Math.max(0, cloud.confidence || 0.5)),
-          description: cloud.description || ''
+          description: cloud.description || "",
         }));
-        
+
         console.log(`  > 成功提取 ${cloudTypes.length} 种云朵类型`);
         return cloudTypes;
-        
       } catch (parseError) {
         console.log(`  > JSON解析失败，尝试从文本中提取关键词`);
         return this.extractCloudTypesFromText(content);
       }
-
     } catch (error) {
-      console.error('  > 云朵类型提取失败:', error instanceof Error ? error.message : '未知错误');
-      throw new Error(`云朵类型识别失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      console.error(
+        "  > 云朵类型提取失败:",
+        error instanceof Error ? error.message : "未知错误"
+      );
+      throw new Error(
+        `云朵类型识别失败: ${
+          error instanceof Error ? error.message : "未知错误"
+        }`
+      );
     }
   }
 
@@ -145,41 +153,43 @@ class CloudAnalyzer {
     // WMO标准的10个基本云属
     const cloudTypeKeywords = [
       // 高云族
-      { names: ['卷云', 'cirrus', 'ci'], type: '卷云' },
-      { names: ['卷积云', 'cirrocumulus', 'cc'], type: '卷积云' },
-      { names: ['卷层云', 'cirrostratus', 'cs'], type: '卷层云' },
-      
-      // 中云族  
-      { names: ['高积云', 'altocumulus', 'ac'], type: '高积云' },
-      { names: ['高层云', 'altostratus', 'as'], type: '高层云' },
-      
+      { names: ["卷云", "cirrus", "ci"], type: "卷云" },
+      { names: ["卷积云", "cirrocumulus", "cc"], type: "卷积云" },
+      { names: ["卷层云", "cirrostratus", "cs"], type: "卷层云" },
+
+      // 中云族
+      { names: ["高积云", "altocumulus", "ac"], type: "高积云" },
+      { names: ["高层云", "altostratus", "as"], type: "高层云" },
+
       // 低云族
-      { names: ['层积云', 'stratocumulus', 'sc'], type: '层积云' },
-      { names: ['层云', 'stratus', 'st'], type: '层云' },
-      { names: ['积云', 'cumulus', 'cu'], type: '积云' },
-      { names: ['积雨云', 'cumulonimbus', 'cb'], type: '积雨云' },
-      
+      { names: ["层积云", "stratocumulus", "sc"], type: "层积云" },
+      { names: ["层云", "stratus", "st"], type: "层云" },
+      { names: ["积云", "cumulus", "cu"], type: "积云" },
+      { names: ["积雨云", "cumulonimbus", "cb"], type: "积雨云" },
+
       // 降水云
-      { names: ['雨层云', 'nimbostratus', 'ns'], type: '雨层云' }
+      { names: ["雨层云", "nimbostratus", "ns"], type: "雨层云" },
     ];
 
     const foundTypes: CloudType[] = [];
     const lowerText = text.toLowerCase();
 
     cloudTypeKeywords.forEach(({ names, type }) => {
-      const found = names.some(name => lowerText.includes(name.toLowerCase()));
+      const found = names.some((name) =>
+        lowerText.includes(name.toLowerCase())
+      );
       if (found) {
         foundTypes.push({
           type,
           confidence: 0.6,
-          description: '从文本描述中识别'
+          description: "从文本描述中识别",
         });
       }
     });
 
     // 如果没有找到任何类型，抛出错误而不是返回默认值
     if (foundTypes.length === 0) {
-      throw new Error('无法从文本中识别出任何云朵类型');
+      throw new Error("无法从文本中识别出任何云朵类型");
     }
 
     return foundTypes;
@@ -188,13 +198,16 @@ class CloudAnalyzer {
   /**
    * 基于云朵类型生成萌妹风格评论
    */
-  private async generateCommentFromCloudTypes(cloudTypes: CloudType[], imageCount: number): Promise<string> {
+  private async generateCommentFromCloudTypes(
+    cloudTypes: CloudType[],
+    imageCount: number
+  ): Promise<string> {
     try {
       // 构建云朵类型描述
-      const cloudTypeNames = cloudTypes.map(c => c.type).join('、');
-      const highConfidenceTypes = cloudTypes.filter(c => c.confidence > 0.7);
-      
-      let baseText = '';
+      const cloudTypeNames = cloudTypes.map((c) => c.type).join("、");
+      const highConfidenceTypes = cloudTypes.filter((c) => c.confidence > 0.7);
+
+      let baseText = "";
       if (cloudTypes.length === 1) {
         const cloud = cloudTypes[0];
         if (cloud.confidence > 0.8) {
@@ -207,22 +220,24 @@ class CloudAnalyzer {
       } else {
         baseText = `哇塞！一次看到了${cloudTypes.length}种云朵：${cloudTypeNames}，这片天空真是太精彩了！`;
       }
-      
+
       // 添加图片数量相关的评论
       if (imageCount > 1) {
         baseText += `这${imageCount}张图片都拍得很棒呢！`;
       }
-      
+
       // 使用AI润色生成最终评论
       const polishedComment = await this.polishWithMoeStyle(baseText);
-      
+
       console.log(`  > 基于云朵类型生成评论: ${polishedComment}`);
       return polishedComment;
-      
     } catch (error) {
-      console.error('  > 基于云朵类型生成评论失败:', error instanceof Error ? error.message : '未知错误');
+      console.error(
+        "  > 基于云朵类型生成评论失败:",
+        error instanceof Error ? error.message : "未知错误"
+      );
       // 失败时返回简单的基础评论
-      const cloudTypeNames = cloudTypes.map(c => c.type).join('、');
+      const cloudTypeNames = cloudTypes.map((c) => c.type).join("、");
       return `哇！看到了${cloudTypeNames}，天空真美丽呢～ ✨`;
     }
   }
@@ -231,8 +246,8 @@ class CloudAnalyzer {
    * 分析多张图片的云朵类型并生成评论（优化流程，去除重复步骤）
    */
   async analyzeMultipleImagesWithTypes(imageUrls: string[]): Promise<{
-    cloudTypes: CloudType[],
-    comment: string
+    cloudTypes: CloudType[];
+    comment: string;
   }> {
     try {
       console.log(`  > 开始分析 ${imageUrls.length} 张图片的云朵类型`);
@@ -243,21 +258,30 @@ class CloudAnalyzer {
         const types = await this.extractCloudTypes(imageUrl);
         allCloudTypes.push(...types);
       }
-      
+
       // 合并相同类型的云朵，计算平均置信度
       const mergedTypes = this.mergeCloudTypes(allCloudTypes);
 
       // 直接基于云朵类型生成评论，无需额外的图片分析步骤
-      const comment = await this.generateCommentFromCloudTypes(mergedTypes, imageUrls.length);
+      const comment = await this.generateCommentFromCloudTypes(
+        mergedTypes,
+        imageUrls.length
+      );
 
       return {
         cloudTypes: mergedTypes,
-        comment
+        comment,
       };
-
     } catch (error) {
-      console.error('  > 批量云朵类型分析失败:', error instanceof Error ? error.message : '未知错误');
-      throw new Error(`批量云朵分析失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      console.error(
+        "  > 批量云朵类型分析失败:",
+        error instanceof Error ? error.message : "未知错误"
+      );
+      throw new Error(
+        `批量云朵分析失败: ${
+          error instanceof Error ? error.message : "未知错误"
+        }`
+      );
     }
   }
 
@@ -267,14 +291,17 @@ class CloudAnalyzer {
   private mergeCloudTypes(cloudTypes: CloudType[]): CloudType[] {
     const typeMap = new Map<string, CloudType>();
 
-    cloudTypes.forEach(cloud => {
+    cloudTypes.forEach((cloud) => {
       const existing = typeMap.get(cloud.type);
       if (existing) {
         // 计算平均置信度
         existing.confidence = (existing.confidence + cloud.confidence) / 2;
         // 合并描述
-        if (cloud.description && !existing.description?.includes(cloud.description)) {
-          existing.description = existing.description 
+        if (
+          cloud.description &&
+          !existing.description?.includes(cloud.description)
+        ) {
+          existing.description = existing.description
             ? `${existing.description}; ${cloud.description}`
             : cloud.description;
         }
@@ -283,10 +310,10 @@ class CloudAnalyzer {
       }
     });
 
-    return Array.from(typeMap.values())
-      .sort((a, b) => b.confidence - a.confidence);
+    return Array.from(typeMap.values()).sort(
+      (a, b) => b.confidence - a.confidence
+    );
   }
-
 
   /**
    * 用二次元萌妹风格润色文本
@@ -306,7 +333,7 @@ class CloudAnalyzer {
         "5. 可以用一些萌萌的语气词，比如：呢、哦、呀、嘛、喵",
         "6. 控制在100字以内，要简洁可爱",
         "7. 不要过度使用日语，要让中文读者容易理解",
-        "请只返回润色后的文本，不要加任何解释。"
+        "请只返回润色后的文本，不要加任何解释。",
       ].join("\n");
 
       const response = await this.client.post("/chat/completions", {
@@ -314,24 +341,26 @@ class CloudAnalyzer {
         messages: [
           {
             role: "system",
-            content: systemPrompt
+            content: systemPrompt,
           },
           {
             role: "user",
-            content: `请用可爱的二次元萌妹语气润色这段文本：${originalText}`
-          }
+            content: `请用可爱的二次元萌妹语气润色这段文本：${originalText}`,
+          },
         ],
         max_tokens: 300,
         temperature: 0.8,
       });
 
       const polishedText = response.data.choices[0].message.content.trim();
-      
+
       console.log(`  > 萌妹风格润色完成: ${polishedText}`);
       return polishedText;
-
     } catch (error) {
-      console.error('  > 文本润色失败:', error instanceof Error ? error.message : '未知错误');
+      console.error(
+        "  > 文本润色失败:",
+        error instanceof Error ? error.message : "未知错误"
+      );
       // 如果润色失败，返回原文本
       return originalText;
     }
@@ -346,15 +375,15 @@ class CloudAnalyzer {
     if (analysisResults.length === 0) {
       return null;
     }
-    
+
     // 获取第一个（也是唯一的）分析结果
     const originalResult = analysisResults[0];
-    
+
     // 使用二次元萌妹风格润色
     const polishedResult = await this.polishWithMoeStyle(originalResult);
-    
+
     return polishedResult;
   }
 }
 
-export { CloudAnalyzer, OpenAIConfig }; 
+export { CloudAnalyzer, OpenAIConfig };
